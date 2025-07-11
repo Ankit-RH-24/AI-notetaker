@@ -5,5 +5,4 @@ gunicorn
 python-dotenv
 requests
 firebase-admin
-
-
+groq
