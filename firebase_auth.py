@@ -3,18 +3,30 @@ from firebase_admin import credentials, auth
 from flask import request
 import os
 from dotenv import load_dotenv
+import json
+import tempfile
 
 load_dotenv()
 
-# ✅ Load path to Firebase credentials from env
-cred_path = os.environ.get("FIREBASE_CREDENTIAL_PATH")
+# ✅ Load Firebase credentials JSON from env
+firebase_json = os.environ.get("FIREBASE_CREDENTIAL_JSON")
 
 # ✅ Initialize Firebase app (only if not already initialized)
 if not firebase_admin._apps:
-    if not cred_path or not os.path.exists(cred_path):
-        raise Exception("❌ FIREBASE_CREDENTIAL_PATH is missing or invalid.")
-    cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
+    if not firebase_json:
+        raise Exception("❌ FIREBASE_CREDENTIAL_JSON is missing.")
+
+    try:
+        # Create a temporary file to hold the JSON
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False, suffix=".json") as tmp_file:
+            tmp_file.write(firebase_json)
+            tmp_file.flush()
+            tmp_path = tmp_file.name
+
+        cred = credentials.Certificate(tmp_path)
+        firebase_admin.initialize_app(cred)
+    except Exception as e:
+        raise Exception(f"❌ Failed to initialize Firebase app: {e}")
 
 def verify_firebase_token(request):
     """
