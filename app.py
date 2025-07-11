@@ -1,6 +1,8 @@
 from flask import Flask, render_template
 from flask_cors import CORS
 from backend.routes.transcripts import bp as transcripts_bp
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 CORS(app)

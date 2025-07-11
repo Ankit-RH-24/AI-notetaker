@@ -1,10 +1,19 @@
 import firebase_admin
 from firebase_admin import credentials, auth
 from flask import request
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# ✅ Load path to Firebase credentials from env
+cred_path = os.environ.get("FIREBASE_CREDENTIAL_PATH")
 
 # ✅ Initialize Firebase app (only if not already initialized)
 if not firebase_admin._apps:
-    cred = credentials.Certificate("otp-login-ca063-firebase-adminsdk-fbsvc-7853bee8ff.json")
+    if not cred_path or not os.path.exists(cred_path):
+        raise Exception("❌ FIREBASE_CREDENTIAL_PATH is missing or invalid.")
+    cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
 
 def verify_firebase_token(request):
