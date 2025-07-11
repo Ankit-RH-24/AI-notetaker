@@ -1,11 +1,11 @@
-# render.yaml
 services:
   - type: web
-    name: mednote-app
-    env: python
-    buildCommand: ""
-    startCommand: gunicorn app:app
-    plan: free
+    name: mednote-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.10
+      - key: FIREBASE_CREDENTIAL_JSON
+        sync: false  # Set this manually in the Render dashboard
+      - key: GROQ_API_KEY
+        sync: false  # Set this manually in the Render dashboard
