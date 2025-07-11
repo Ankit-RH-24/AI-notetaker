@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transcript Viewer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="relative bg-gradient-to-br from-blue-100 via-white to-cyan-100 min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
+
+
+  <!-- 🎨 Optional Floating Blob -->
+  <svg class="absolute top-[-80px] left-[-80px] blur-3xl opacity-20 w-[500px] h-[500px] z-0" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#38bdf8" d="M56.8,-64.1C70.2,-50.1,76.4,-28.4,73.9,-10.6C71.5,7.1,60.4,21.9,48.1,32.3C35.9,42.7,22.6,48.6,8.4,54.8C-5.8,61,-20.9,67.5,-34.3,63.2C-47.7,58.8,-59.4,43.6,-65.5,26.6C-71.6,9.6,-72,-9.2,-64.2,-23.3C-56.4,-37.4,-40.5,-46.8,-24.9,-58.1C-9.3,-69.5,6,-82.8,21.5,-83.5C37.1,-84.2,55.4,-72.4,56.8,-64.1Z" transform="translate(100 100)" />
+  </svg>
+
+  <!-- 🌈 Gradient Outer Card -->
+  <div class="p-1 rounded-3xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 shadow-xl z-10 w-full max-w-4xl">
+
+    <!-- 💬 Inner White Container -->
+    <div class="bg-white/80 backdrop-blur-lg shadow-2xl rounded-2xl p-8 fade-in">
+
+      <!-- 🧾 Title -->
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-extrabold text-blue-700 mb-2">📘 Transcript Viewer</h1>
+        <p class="text-gray-500">Review your recorded conversation and generate summaries</p>
+      </div>
+
+      <!-- 🔙 Back Button -->
+      <div class="mb-6 text-center">
+        <button onclick="window.location='/saved'"
+          class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition">
+          ⬅️ Back 
+        </button>
+      </div>
+
+      <!-- 📄 Transcript Content -->
+      <div id="viewerBox"
+        class="bg-white/90 backdrop-blur-sm text-gray-800 p-6 rounded-lg shadow-inner border border-gray-300 whitespace-pre-wrap mb-8 min-h-[200px]">
+        Loading transcript...
+      </div>
+
+      <!-- ✨ Summarize Button -->
+      <div class="flex justify-center">
+        <button id="summarizeBtn"
+          class="bg-blue-600 text-white px-6 py-3 rounded-md shadow hover:shadow-lg hover:bg-blue-700 transition duration-200">
+          ✨ Summarize with AI
+        </button>
+      </div>
+
+      <!-- 📋 Summary Output -->
+      <div id="summaryBox"
+        class="mt-6 hidden bg-blue-50 border border-blue-200 shadow p-6 rounded-lg text-gray-800 whitespace-pre-wrap">
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  const id = localStorage.getItem("current_id");
+  const token = localStorage.getItem("mednote_id_token");
+  let currentTranscript = "";
+
+  const viewerBox = document.getElementById("viewerBox");
+  const summaryBox = document.getElementById("summaryBox");
+
+  if (!token) {
+    viewerBox.innerText = "⚠️ You are not logged in. Please go back and log in to view transcripts.";
+  } else {
+    fetch("/api/transcripts/list", {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    })
+      .then(res => {
+        if (res.status === 401) throw new Error("Unauthorized");
+        return res.json();
+      })
+      .then(data => {
+        const found = data.find(t => t.id === id);
+        if (found) {
+          currentTranscript = found.content;
+          viewerBox.innerText = currentTranscript;
+
+          if (found.summary) {
+            summaryBox.classList.remove("hidden");
+            summaryBox.innerText = found.summary;
+          }
+        } else {
+          viewerBox.innerText = "❌ Transcript not found.";
+        }
+      })
+      .catch(err => {
+        console.error("Error loading transcript:", err);
+        viewerBox.innerText = "❌ Failed to load transcript. Please log in again.";
+      });
+  }
+
+  document.getElementById("summarizeBtn").onclick = () => {
+    if (!currentTranscript) {
+      alert("Transcript is empty or not loaded.");
+      return;
+    }
+
+    summaryBox.classList.remove("hidden");
+    summaryBox.innerText = "✨ Summarizing...";
+
+    fetch("/api/transcripts/summarize", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({ content: currentTranscript, id })
+    })
+      .then(res => {
+        if (res.status === 401) throw new Error("Unauthorized");
+        return res.json();
+      })
+      .then(data => {
+        summaryBox.innerText = data.summary || "No summary available.";
+      })
+      .catch(err => {
+        console.error("Summary error:", err);
+        summaryBox.innerText = "❌ Error summarizing transcript.";
+      });
+  };
+</script>
+</body>
+</html>

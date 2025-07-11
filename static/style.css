@@ -1,0 +1,35 @@
+body {
+  font-family: sans-serif;
+  background-color: #f6faff;
+  padding: 20px;
+}
+
+h1 {
+  color: #007aff;
+  margin-bottom: 20px;
+}
+
+textarea {
+  width: 100%;
+  height: 200px;
+  padding: 10px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+}
+
+.buttons {
+  margin-top: 15px;
+}
+
+button {
+  margin-right: 10px;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  background-color: #007aff;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+env/
+venv/
+*.env
+*.log
+*.sqlite3
+node_modules/
+.DS_Store
+otp-login-*.json     # Hide Firebase admin key
