@@ -1,40 +1,44 @@
+import os
+import json
 import firebase_admin
 from firebase_admin import credentials, auth
-from flask import request
-import os
-from dotenv import load_dotenv
+from flask import request, jsonify
+from functools import wraps
 
-load_dotenv()
+# --- Get FIREBASE credential from env ---
+firebase_json_str = os.getenv("FIREBASE_CREDENTIAL_JSON")
 
-# ✅ Load the path to Firebase credentials file
-firebase_json_path = os.environ.get("FIREBASE_CREDENTIAL_JSON")
+if not firebase_json_str:
+    raise Exception("❌ FIREBASE_CREDENTIAL_JSON is missing or file path is invalid.")
 
-# ✅ Initialize Firebase app if not already initialized
-if not firebase_admin._apps:
-    if not firebase_json_path or not os.path.exists(firebase_json_path):
-        raise Exception("❌ FIREBASE_CREDENTIAL_JSON is missing or file path is invalid.")
+try:
+    # Convert JSON string to dict
+    firebase_cred_dict = json.loads(firebase_json_str)
 
-    try:
-        cred = credentials.Certificate(firebase_json_path)
-        firebase_admin.initialize_app(cred)
-    except Exception as e:
-        raise Exception(f"❌ Failed to initialize Firebase app: {e}")
+    # Use dict to initialize credentials
+    cred = credentials.Certificate(firebase_cred_dict)
+    firebase_admin.initialize_app(cred)
+    print("✅ Firebase initialized successfully.")
+except Exception as e:
+    raise Exception(f"❌ Failed to initialize Firebase app: {e}")
 
-def verify_firebase_token(request):
-    """
-    Verifies Firebase ID token from Authorization header.
-    Expected format: Authorization: Bearer <idToken>
-    Returns decoded token dict if valid, else None.
-    """
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        id_token = auth_header.split(" ")[1]
-    else:
-        return None
+# --- Token verification decorator ---
+def verify_firebase_token(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
 
-    try:
-        decoded_token = auth.verify_id_token(id_token)
-        return decoded_token
-    except Exception as e:
-        print("❌ Firebase token verification failed:", e)
-        return None
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Unauthorized"}), 401
+
+        id_token = auth_header.split("Bearer ")[1]
+
+        try:
+            decoded_token = auth.verify_id_token(id_token)
+            request.user = decoded_token
+        except Exception as e:
+            print("❌ Firebase token verification failed:", e)
+            return jsonify({"error": "Unauthorized"}), 401
+
+        return f(*args, **kwargs)
+    return decorated_function
