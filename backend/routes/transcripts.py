@@ -3,6 +3,14 @@ from pymongo import MongoClient
 from bson import ObjectId
 from firebase_auth import verify_firebase_token
 import requests
+import os
+from dotenv import load_dotenv
+from groq import Groq
+
+# --- Setup ---
+load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 bp = Blueprint("transcripts", __name__)
 
@@ -13,7 +21,7 @@ db = client["Mednote"]
 collection = db["transcripts"]
 
 # --- Save Transcript (requires auth) ---
-@bp.route("/save", methods=["POST"])
+@bp.route("/api/transcripts/save", methods=["POST"])
 def save_transcript():
     user = verify_firebase_token(request)
     if not user:
@@ -37,7 +45,7 @@ def save_transcript():
 # --- List Transcripts for Logged-in User ---
 @bp.route("/list", methods=["GET"])
 def list_transcripts():
-    user = verify_firebase_token(request)
+    user = verify_firebase_token(request)  # ✅ FIXED
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -51,18 +59,7 @@ def list_transcripts():
             "timestamp": doc.get("timestamp")
         })
     return jsonify(docs)
-
-# --- Summarize Transcript (Only if owned by user) ---
-
-import os
-from dotenv import load_dotenv
-from groq import Groq
-
-# Load .env variables
-load_dotenv()
-
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
+# --- Summarize Transcript ---
 @bp.route("/summarize", methods=["POST"])
 def summarize():
     user = verify_firebase_token(request)
@@ -83,36 +80,41 @@ def summarize():
     try:
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
-            "Authorization": GROQ_API_KEY,
+            "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
 
         payload = {
             "model": "llama3-8b-8192",
             "messages": [
-  {
-    "role": "system",
-    "content": (
-      "You are MedNote, an expert assistant trained in psychotherapy session summarization.\n"
-      "Your role is to analyze conversations between a therapist and a client, and create a structured, professional summary for therapists.\n\n"
-      "Summarize the session using the following sections:\n"
-      "- **Client's Main Concern**\n"
-      "- **Session Highlights** (key topics discussed, emotional tone, important events)\n"
-      "- **Therapist's Observations** (insights, patterns, shifts in mood or behavior)\n"
-      "- **Plan / Follow-up** (what was agreed, goals, next steps)\n\n"
-      "Only include clinically relevant content. Use clear, empathetic, and professional language.\n"
-      "Avoid small talk or irrelevant chatter. Frame from the therapist's perspective."
-    )
-  },
-  {
-    "role": "user",
-    "content": f"Here is the full transcript of a therapy session:\n\n{content}\n\nPlease generate a structured summary."
-  }
-],
+                {
+                    "role": "system",
+                    "content": (
+                        "You are MedNote, an expert assistant trained in psychotherapy session summarization.\n"
+                        "Your role is to analyze conversations between a therapist and a client, and create a structured, professional summary for therapists.\n\n"
+                        "Summarize the session using the following sections:\n"
+                        "- **Client's Main Concern**\n"
+                        "- **Session Highlights** (key topics discussed, emotional tone, important events)\n"
+                        "- **Therapist's Observations** (insights, patterns, shifts in mood or behavior)\n"
+                        "- **Plan / Follow-up** (what was agreed, goals, next steps)\n\n"
+                        "Only include clinically relevant content. Use clear, empathetic, and professional language.\n"
+                        "Avoid small talk or irrelevant chatter. Frame from the therapist's perspective."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"Here is the full transcript of a therapy session:\n\n{content}\n\nPlease generate a structured summary."
+                }
+            ],
             "temperature": 0.7
         }
 
         response = requests.post(url, json=payload, headers=headers)
+
+        if response.status_code != 200:
+            print("❌ Groq API error:", response.text)
+            return jsonify({"error": "Groq API failed"}), 500
+
         result = response.json()
         summary = result["choices"][0]["message"]["content"]
 
@@ -123,9 +125,10 @@ def summarize():
 
         return jsonify({"summary": summary})
     except Exception as e:
+        print("❌ Summary generation failed:", e)
         return jsonify({"error": str(e)}), 500
 
-# --- Delete Transcript (Only if owned by user) ---
+# --- Delete Transcript ---
 @bp.route("/delete/<id>", methods=["DELETE"])
 def delete_transcript(id):
     user = verify_firebase_token(request)
