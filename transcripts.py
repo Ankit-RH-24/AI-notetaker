@@ -21,7 +21,7 @@ db = client["Mednote"]
 collection = db["transcripts"]
 
 # --- Save Transcript (requires auth) ---
-@bp.route("/save", methods=["POST"])
+@bp.route("/api/transcripts/save", methods=["POST"])
 def save_transcript():
     user = verify_firebase_token(request)
     if not user:
