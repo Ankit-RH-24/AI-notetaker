@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
-from firebase_auth import verify_firebase_token
+from firebase_auth import get_firebase_user
 import requests
 import os
 from dotenv import load_dotenv
@@ -15,7 +15,7 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 bp = Blueprint("transcripts", __name__)
 
 # --- MongoDB Setup ---
-MONGO_URI = "mongodb+srv://mednote_user:mednote_pass123@mednote.scgdktg.mongodb.net/mednote?retryWrites=true&w=majority&appName=MedNote"
+MONGO_URI = os.getenv("MONGO_URI")  # use env instead of hardcoding
 client = MongoClient(MONGO_URI)
 db = client["Mednote"]
 collection = db["transcripts"]
@@ -23,7 +23,7 @@ collection = db["transcripts"]
 # --- Save Transcript (requires auth) ---
 @bp.route("/api/transcripts/save", methods=["POST"])
 def save_transcript():
-    user = verify_firebase_token(request)
+    user = get_firebase_user(request)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -45,7 +45,7 @@ def save_transcript():
 # --- List Transcripts for Logged-in User ---
 @bp.route("/list", methods=["GET"])
 def list_transcripts():
-    user = verify_firebase_token(request)  # ✅ FIXED
+    user = get_firebase_user(request)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -59,10 +59,11 @@ def list_transcripts():
             "timestamp": doc.get("timestamp")
         })
     return jsonify(docs)
+
 # --- Summarize Transcript ---
 @bp.route("/summarize", methods=["POST"])
 def summarize():
-    user = verify_firebase_token(request)
+    user = get_firebase_user(request)
     if not user:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -131,7 +132,7 @@ def summarize():
 # --- Delete Transcript ---
 @bp.route("/delete/<id>", methods=["DELETE"])
 def delete_transcript(id):
-    user = verify_firebase_token(request)
+    user = get_firebase_user(request)
     if not user:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
