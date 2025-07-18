@@ -42,3 +42,16 @@ def verify_firebase_token(f):
 
         return f(*args, **kwargs)
     return decorated_function
+
+def get_firebase_user(request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+
+    id_token = auth_header.split("Bearer ")[1]
+    try:
+        decoded_token = auth.verify_id_token(id_token)
+        return decoded_token
+    except Exception as e:
+        print("❌ Firebase token verification failed:", e)
+        return None
