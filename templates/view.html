@@ -1,146 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Transcript Viewer</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-
-    .fade-in {
-      animation: fadeIn 0.6s ease-in-out;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-</head>
-<body class="relative bg-gradient-to-br from-blue-100 via-white to-cyan-100 min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
-
-
-  <!-- 🎨 Optional Floating Blob -->
-  <svg class="absolute top-[-80px] left-[-80px] blur-3xl opacity-20 w-[500px] h-[500px] z-0" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-    <path fill="#38bdf8" d="M56.8,-64.1C70.2,-50.1,76.4,-28.4,73.9,-10.6C71.5,7.1,60.4,21.9,48.1,32.3C35.9,42.7,22.6,48.6,8.4,54.8C-5.8,61,-20.9,67.5,-34.3,63.2C-47.7,58.8,-59.4,43.6,-65.5,26.6C-71.6,9.6,-72,-9.2,-64.2,-23.3C-56.4,-37.4,-40.5,-46.8,-24.9,-58.1C-9.3,-69.5,6,-82.8,21.5,-83.5C37.1,-84.2,55.4,-72.4,56.8,-64.1Z" transform="translate(100 100)" />
-  </svg>
-
-  <!-- 🌈 Gradient Outer Card -->
-  <div class="p-1 rounded-3xl bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 shadow-xl z-10 w-full max-w-4xl">
-
-    <!-- 💬 Inner White Container -->
-    <div class="bg-white/80 backdrop-blur-lg shadow-2xl rounded-2xl p-8 fade-in">
-
-      <!-- 🧾 Title -->
-      <div class="text-center mb-8">
-        <h1 class="text-4xl font-extrabold text-blue-700 mb-2">📘 Transcript Viewer</h1>
-        <p class="text-gray-500">Review your recorded conversation and generate summaries</p>
-      </div>
-
-      <!-- 🔙 Back Button -->
-      <div class="mb-6 text-center">
-        <button onclick="window.location='/saved'"
-          class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition">
-          ⬅️ Back 
-        </button>
-      </div>
-
-      <!-- 📄 Transcript Content -->
-      <div id="viewerBox"
-        class="bg-white/90 backdrop-blur-sm text-gray-800 p-6 rounded-lg shadow-inner border border-gray-300 whitespace-pre-wrap mb-8 min-h-[200px]">
-        Loading transcript...
-      </div>
-
-      <!-- ✨ Summarize Button -->
-      <div class="flex justify-center">
-        <button id="summarizeBtn"
-          class="bg-blue-600 text-white px-6 py-3 rounded-md shadow hover:shadow-lg hover:bg-blue-700 transition duration-200">
-          ✨ Summarize with AI
-        </button>
-      </div>
-
-      <!-- 📋 Summary Output -->
-      <div id="summaryBox"
-        class="mt-6 hidden bg-blue-50 border border-blue-200 shadow p-6 rounded-lg text-gray-800 whitespace-pre-wrap">
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-  const id = localStorage.getItem("current_id");
-  const token = localStorage.getItem("mednote_id_token");
-  let currentTranscript = "";
-
-  const viewerBox = document.getElementById("viewerBox");
-  const summaryBox = document.getElementById("summaryBox");
-
-  if (!token) {
-    viewerBox.innerText = "⚠️ You are not logged in. Please go back and log in to view transcripts.";
-  } else {
-    fetch("/api/transcripts/list", {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    })
-      .then(res => {
-        if (res.status === 401) throw new Error("Unauthorized");
-        return res.json();
-      })
-      .then(data => {
-        const found = data.find(t => t.id === id);
-        if (found) {
-          currentTranscript = found.content;
-          viewerBox.innerText = currentTranscript;
-
-          if (found.summary) {
-            summaryBox.classList.remove("hidden");
-            summaryBox.innerText = found.summary;
-          }
-        } else {
-          viewerBox.innerText = "❌ Transcript not found.";
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>View Transcript</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <style type="text/tailwindcss">
+        :root {
+            --primary-color: #F97316;
+            --background-color: #FFF7ED;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
         }
-      })
-      .catch(err => {
-        console.error("Error loading transcript:", err);
-        viewerBox.innerText = "❌ Failed to load transcript. Please log in again.";
-      });
-  }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .action-button {
+            @apply flex flex-col items-center justify-center space-y-1 text-gray-600 hover:text-[var(--primary-color)] transition-colors;
+        }
+        .footer-icon-button {
+            @apply h-14 w-14 flex items-center justify-center rounded-full shadow-md transition-transform transform hover:scale-110;
+        }
+    </style>
+</head>
+<body class="text-[var(--text-primary)]">
 
-  document.getElementById("summarizeBtn").onclick = () => {
-    if (!currentTranscript) {
-      alert("Transcript is empty or not loaded.");
-      return;
-    }
+    <div class="flex flex-col min-h-screen p-6 w-full max-w-2xl mx-auto">
+        <!-- Header -->
+        <header class="flex items-center text-gray-800 mb-6">
+            <button onclick="window.location.href='/saved'" class="p-2 -ml-2">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </button>
+            <div class="flex-grow text-center">
+                <h1 id="transcript-name" class="text-2xl font-bold">Loading...</h1>
+            </div>
+            <div class="w-8"></div> <!-- Spacer -->
+        </header>
 
-    summaryBox.classList.remove("hidden");
-    summaryBox.innerText = "✨ Summarizing...";
+        <!-- Loading State -->
+        <div id="loader" class="flex-grow flex flex-col items-center justify-center">
+             <svg class="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
 
-    fetch("/api/transcripts/summarize", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({ content: currentTranscript, id })
-    })
-      .then(res => {
-        if (res.status === 401) throw new Error("Unauthorized");
-        return res.json();
-      })
-      .then(data => {
-        summaryBox.innerText = data.summary || "No summary available.";
-      })
-      .catch(err => {
-        console.error("Summary error:", err);
-        summaryBox.innerText = "❌ Error summarizing transcript.";
-      });
-  };
-</script>
+        <!-- Main Content (Initially Hidden) -->
+        <main id="content-container" class="flex-grow hidden space-y-6 overflow-y-auto">
+            <!-- AI Summary Section -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-semibold">AI Summary</h2>
+                    <button id="regenerate-summary-btn" class="hidden text-sm text-orange-600 hover:underline">Regenerate</button>
+                </div>
+                <div id="summary-content" class="p-4 bg-orange-100 border border-orange-200 rounded-lg text-gray-700 whitespace-pre-wrap min-h-[6rem]"></div>
+            </div>
+            <!-- Full Transcript Section -->
+            <div>
+                 <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-semibold">Full Transcript</h2>
+                    <button id="save-changes-btn" class="hidden text-sm bg-green-500 text-white px-3 py-1 rounded-lg">Save Changes</button>
+                </div>
+                <textarea id="transcript-content" class="w-full p-4 bg-white border border-gray-200 rounded-lg text-gray-700 h-64 overflow-y-auto whitespace-pre-wrap focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
+            </div>
+        </main>
+
+        <!-- Footer with Action Buttons -->
+        <footer id="footer-actions" class="py-4 mt-auto border-t border-gray-200 hidden">
+            <div class="flex justify-around items-center">
+                <div class="flex flex-col items-center space-y-1">
+                    <button id="share-btn" class="footer-icon-button bg-orange-500 hover:bg-orange-600">
+                        <span class="material-symbols-outlined text-white">share</span>
+                    </button>
+                    <span class="text-xs text-gray-600">Share</span>
+                </div>
+                <div class="flex flex-col items-center space-y-1">
+                    <button id="copy-btn" class="footer-icon-button bg-orange-500 hover:bg-orange-600">
+                        <span class="material-symbols-outlined text-white">content_copy</span>
+                    </button>
+                    <span class="text-xs text-gray-600">Copy</span>
+                </div>
+                <div class="flex flex-col items-center space-y-1">
+                    <button id="delete-btn" class="footer-icon-button bg-red-500 hover:bg-red-600">
+                        <span class="material-symbols-outlined text-white">delete</span>
+                    </button>
+                    <span class="text-xs text-red-500">Delete</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const transcriptId = localStorage.getItem("current_view_id");
+            const token = localStorage.getItem("mednote_id_token");
+
+            // --- Get all DOM elements ---
+            const loader = document.getElementById('loader');
+            const contentContainer = document.getElementById('content-container');
+            const footerActions = document.getElementById('footer-actions');
+            const transcriptName = document.getElementById('transcript-name');
+            const summaryContent = document.getElementById('summary-content');
+            const transcriptContent = document.getElementById('transcript-content');
+            const regenerateBtn = document.getElementById('regenerate-summary-btn');
+            const saveChangesBtn = document.getElementById('save-changes-btn');
+            const shareBtn = document.getElementById('share-btn');
+            const copyBtn = document.getElementById('copy-btn');
+            const deleteBtn = document.getElementById('delete-btn');
+
+            let originalTranscript = "";
+
+            if (!transcriptId || !token) {
+                loader.innerHTML = '<p class="text-red-500">Error: No transcript ID found or you are not logged in.</p>';
+                return;
+            }
+
+            // --- Main data fetching logic ---
+            fetch(`/api/transcripts/get/${transcriptId}`, { headers: { "Authorization": `Bearer ${token}` } })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+
+                    // Populate initial data
+                    transcriptName.textContent = data.name || 'Untitled Session';
+                    transcriptContent.value = data.content || '';
+                    originalTranscript = data.content || '';
+                    
+                    // Show the main content
+                    loader.classList.add('hidden');
+                    contentContainer.classList.remove('hidden');
+                    footerActions.classList.remove('hidden');
+
+                    // Decide whether to generate or show summary
+                    if (data.summary) {
+                        summaryContent.textContent = data.summary;
+                        regenerateBtn.classList.remove('hidden');
+                    } else {
+                        generateSummary(data.content);
+                    }
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
+                    loader.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
+                });
+            
+            // --- Function to generate summary ---
+            function generateSummary(content) {
+                summaryContent.textContent = 'Generating AI summary...';
+                regenerateBtn.classList.add('hidden');
+
+                fetch(`/api/transcripts/summarize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ id: transcriptId, content: content })
+                })
+                .then(res => res.json())
+                .then(summaryData => {
+                    if (summaryData.error) throw new Error(summaryData.error);
+                    summaryContent.textContent = summaryData.summary;
+                    regenerateBtn.classList.remove('hidden');
+                })
+                .catch(err => {
+                    summaryContent.textContent = `Failed to generate summary: ${err.message}`;
+                });
+            }
+
+            // --- Event Listeners ---
+            transcriptContent.addEventListener('input', () => {
+                if (transcriptContent.value !== originalTranscript) {
+                    saveChangesBtn.classList.remove('hidden');
+                } else {
+                    saveChangesBtn.classList.add('hidden');
+                }
+            });
+
+            saveChangesBtn.addEventListener('click', () => {
+                const newContent = transcriptContent.value;
+                saveChangesBtn.textContent = 'Saving...';
+                
+                fetch(`/api/transcripts/update/${transcriptId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ content: newContent })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        originalTranscript = newContent;
+                        saveChangesBtn.classList.add('hidden');
+                        saveChangesBtn.textContent = 'Save Changes';
+                        alert('Changes saved!');
+                    } else {
+                        throw new Error(data.error);
+                    }
+                })
+                .catch(err => {
+                    alert(`Failed to save changes: ${err.message}`);
+                    saveChangesBtn.textContent = 'Save Changes';
+                });
+            });
+
+            regenerateBtn.addEventListener('click', () => {
+                generateSummary(transcriptContent.value);
+            });
+
+            copyBtn.addEventListener('click', () => {
+                const summaryText = summaryContent.textContent;
+                navigator.clipboard.writeText(summaryText).then(() => alert('Summary copied to clipboard!'));
+            });
+
+            shareBtn.addEventListener('click', () => {
+                const summaryText = summaryContent.textContent;
+                if (navigator.share) {
+                    navigator.share({ title: `MedNote Summary: ${transcriptName.textContent}`, text: summaryText });
+                } else {
+                    alert("Web Share API not supported. Try copying instead.");
+                }
+            });
+
+            deleteBtn.addEventListener('click', () => {
+                if (!confirm("Are you sure you want to permanently delete this transcript?")) return;
+                fetch(`/api/transcripts/delete/${transcriptId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }})
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Transcript deleted.');
+                        window.location.href = '/saved';
+                    } else {
+                        alert('Failed to delete transcript.');
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
