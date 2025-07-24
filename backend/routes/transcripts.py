@@ -1,32 +1,73 @@
+import os
+import certifi
+import json # Import the json library
 from flask import Blueprint, request, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
-from firebase_auth import get_firebase_user
-import requests
-import os
-from dotenv import load_dotenv
 from groq import Groq
+from dotenv import load_dotenv
+from firebase_auth import verify_firebase_token
+from google.cloud import vision 
+from google.oauth2 import service_account # Import the service_account module
 
-# --- Setup ---
+# --- Initialize Clients ---
 load_dotenv()
+MONGO_URI = os.getenv("MONGO_URI")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+ca = certifi.where()
+client = MongoClient(MONGO_URI, tlsCAFile=ca)
+db = client.get_database("Mednote")
+collection = db["transcripts"]
 groq_client = Groq(api_key=GROQ_API_KEY)
+
+
+# --- SECURE VISION CLIENT INITIALIZATION ---
+creds_json_str = os.getenv("FIREBASE_CREDENTIAL_JSON")
+
+if creds_json_str:
+    # In production (Render), load credentials from the environment variable
+    creds_info = json.loads(creds_json_str)
+    credentials = service_account.Credentials.from_service_account_info(creds_info)
+else:
+    # In local development, load credentials from the file
+    SERVICE_ACCOUNT_FILE = 'serviceAccountKey.json'
+    credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE)
+
+vision_client = vision.ImageAnnotatorClient(credentials=credentials)
+
 
 bp = Blueprint("transcripts", __name__)
 
-# --- MongoDB Setup ---
-MONGO_URI = os.getenv("MONGO_URI")  # use env instead of hardcoding
-client = MongoClient(MONGO_URI)
-db = client["Mednote"]
-collection = db["transcripts"]
+# --- NEW: Extract Text from Image Route ---
+@bp.route("/extract-from-image", methods=["POST"])
+@verify_firebase_token
+def extract_from_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No image file provided"}), 400
 
-# --- Save Transcript (requires auth) ---
-@bp.route("/api/transcripts/save", methods=["POST"])
+    image_file = request.files['image']
+    
+    try:
+        content = image_file.read()
+        image = vision.Image(content=content)
+        response = vision_client.document_text_detection(image=image)
+        
+        if response.error.message:
+            raise Exception(response.error.message)
+
+        return jsonify({"text": response.full_text_annotation.text})
+
+    except Exception as e:
+        print(f"❌ OCR Error: {e}")
+        return jsonify({"error": "Failed to extract text from image."}), 500
+
+
+# --- Save Transcript ---
+@bp.route("/save", methods=["POST"])
+@verify_firebase_token
 def save_transcript():
-    user = get_firebase_user(request)
-    if not user:
-        return jsonify({"error": "Unauthorized"}), 401
-
+    user = request.user
     data = request.json
     if not data:
         return jsonify({"error": "No data received"}), 400
@@ -39,34 +80,37 @@ def save_transcript():
         "user_id": user.get("uid"),
         "phone": user.get("phone_number")
     })
-
     return jsonify({"status": "Saved", "id": str(result.inserted_id)}), 200
 
-# --- List Transcripts for Logged-in User ---
-@bp.route("/list", methods=["GET"])
-def list_transcripts():
-    user = get_firebase_user(request)
-    if not user:
-        return jsonify({"error": "Unauthorized"}), 401
 
+# --- List Transcripts ---
+@bp.route("/list", methods=["GET"])
+@verify_firebase_token
+def list_transcripts():
+    user = request.user
     docs = []
-    for doc in collection.find({"user_id": user.get("uid")}):
-        docs.append({
-            "id": str(doc["_id"]),
-            "name": doc.get("name"),
-            "content": doc.get("content"),
-            "summary": doc.get("summary", ""),
-            "timestamp": doc.get("timestamp")
-        })
-    return jsonify(docs)
+    try:
+        # Sort by timestamp descending to get newest first
+        cursor = collection.find({"user_id": user.get("uid")})
+        for doc in cursor:
+            docs.append({
+                "id": str(doc["_id"]),
+                "name": doc.get("name"),
+                "content": doc.get("content"),
+                "summary": doc.get("summary", ""),
+                "timestamp": doc.get("timestamp")
+            })
+        return jsonify(docs)
+    except Exception as e:
+        print(f"❌ Error listing transcripts: {e}")
+        return jsonify({"error": "Could not retrieve transcripts"}), 500
+
 
 # --- Summarize Transcript ---
 @bp.route("/summarize", methods=["POST"])
+@verify_firebase_token
 def summarize():
-    user = get_firebase_user(request)
-    if not user:
-        return jsonify({"error": "Unauthorized"}), 401
-
+    user = request.user
     data = request.json
     content = data.get("content", "")
     doc_id = data.get("id", "")
@@ -79,63 +123,77 @@ def summarize():
         return jsonify({"error": "Transcript not found or access denied"}), 403
 
     try:
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        payload = {
-            "model": "llama3-8b-8192",
-            "messages": [
+        chat_completion = groq_client.chat.completions.create(
+            messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "You are MedNote, an expert assistant trained in psychotherapy session summarization.\n"
-                        "Your role is to analyze conversations between a therapist and a client, and create a structured, professional summary for therapists.\n\n"
-                        "Summarize the session using the following sections:\n"
-                        "- **Client's Main Concern**\n"
-                        "- **Session Highlights** (key topics discussed, emotional tone, important events)\n"
-                        "- **Therapist's Observations** (insights, patterns, shifts in mood or behavior)\n"
-                        "- **Plan / Follow-up** (what was agreed, goals, next steps)\n\n"
-                        "Only include clinically relevant content. Use clear, empathetic, and professional language.\n"
-                        "Avoid small talk or irrelevant chatter. Frame from the therapist's perspective."
-                    )
+                    "content": "You are MedNote, an expert assistant trained in psychotherapy session summarization..."
                 },
                 {
                     "role": "user",
-                    "content": f"Here is the full transcript of a therapy session:\n\n{content}\n\nPlease generate a structured summary."
+                    "content": f"Here is the full transcript:\n\n{content}\n\nGenerate a structured summary."
                 }
             ],
-            "temperature": 0.7
-        }
-
-        response = requests.post(url, json=payload, headers=headers)
-
-        if response.status_code != 200:
-            print("❌ Groq API error:", response.text)
-            return jsonify({"error": "Groq API failed"}), 500
-
-        result = response.json()
-        summary = result["choices"][0]["message"]["content"]
+            model="llama3-8b-8192",
+            temperature=0.7,
+        )
+        summary = chat_completion.choices[0].message.content
 
         collection.update_one(
             {"_id": ObjectId(doc_id)},
             {"$set": {"summary": summary}}
         )
-
         return jsonify({"summary": summary})
     except Exception as e:
-        print("❌ Summary generation failed:", e)
+        print(f"❌ Summary generation failed: {e}")
+        return jsonify({"error": "Failed to generate summary"}), 500
+
+
+# --- Get Single Transcript ---
+@bp.route("/get/<id>", methods=["GET"])
+@verify_firebase_token
+def get_transcript(id):
+    user = request.user
+    try:
+        doc = collection.find_one({"_id": ObjectId(id), "user_id": user["uid"]})
+        if doc:
+            doc["_id"] = str(doc["_id"])
+            return jsonify(doc)
+        else:
+            return jsonify({"error": "Transcript not found or access denied"}), 404
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# --- Update Transcript Content ---
+@bp.route("/update/<id>", methods=["POST"])
+@verify_firebase_token
+def update_transcript(id):
+    user = request.user
+    data = request.json
+    new_content = data.get("content")
+
+    if new_content is None:
+        return jsonify({"error": "No content provided"}), 400
+
+    try:
+        result = collection.update_one(
+            {"_id": ObjectId(id), "user_id": user["uid"]},
+            {"$set": {"content": new_content}}
+        )
+        if result.matched_count == 1:
+            return jsonify({"success": True, "message": "Transcript updated."})
+        else:
+            return jsonify({"error": "Transcript not found or access denied"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # --- Delete Transcript ---
 @bp.route("/delete/<id>", methods=["DELETE"])
+@verify_firebase_token
 def delete_transcript(id):
-    user = get_firebase_user(request)
-    if not user:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-
+    user = request.user
     try:
         result = collection.delete_one({"_id": ObjectId(id), "user_id": user["uid"]})
         if result.deleted_count == 1:
@@ -143,4 +201,5 @@ def delete_transcript(id):
         else:
             return jsonify({"success": False, "error": "Transcript not found or access denied"}), 404
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        print(f"❌ Error deleting transcript: {e}")
+        return jsonify({"success": False, "error": "Could not delete transcript"}), 500
