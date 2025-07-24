@@ -1,106 +1,147 @@
 let currentTranscript = "";
 let recognition;
 let recording = false;
+let selectedImageFile = null;
 
-const transcriptEl = document.getElementById("transcript");
-const recordBtn = document.getElementById("recordBtn");
-const saveBtn = document.getElementById("saveBtn");
+window.onload = () => {
+  // --- Get all DOM elements ---
+  const transcriptEl = document.getElementById("transcript");
+  const recordBtn = document.getElementById("recordBtn");
+  const saveBtn = document.getElementById("saveBtn");
+  const recordIcon = document.getElementById("recordIcon");
+  const waveform = document.getElementById("waveform");
+  
+  // OCR Elements
+  const uploadBtn = document.getElementById("uploadBtn");
+  const imageInput = document.getElementById("imageInput");
+  const imagePreviewModal = document.getElementById("imagePreviewModal");
+  const previewImage = document.getElementById("previewImage");
+  const cancelUploadBtn = document.getElementById("cancelUploadBtn");
+  const extractTextBtn = document.getElementById("extractTextBtn");
+  const modalActions = document.getElementById("modal-actions");
+  const modalLoading = document.getElementById("modal-loading");
 
-// Initialize speech recognition
-if ('webkitSpeechRecognition' in window) {
-  recognition = new webkitSpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'en-IN';
-
-  recognition.onresult = function (event) {
-    let interimTranscript = "";
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const res = event.results[i];
-      if (res.isFinal) {
-        currentTranscript += res[0].transcript + " ";
-      } else {
-        interimTranscript += res[0].transcript;
+  // --- Speech Recognition Logic ---
+  if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-IN';
+    recognition.onresult = function(event) {
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          currentTranscript += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
-    }
-    transcriptEl.value = currentTranscript + interimTranscript;
-  };
+      transcriptEl.value = currentTranscript + interimTranscript;
+    };
+    recognition.onend = function() {
+      if (recording) { recognition.start(); }
+    };
+  }
 
-  recognition.onerror = function (e) {
-    console.error("Recognition error:", e.error);
-  };
-
-  recognition.onend = function () {
+  // --- Start/Stop Recording Logic ---
+  recordBtn.onclick = () => {
     if (recording) {
-      recognition.start(); // auto-restart
+      recognition.stop();
+      recording = false;
+      recordIcon.innerText = "mic";
+      waveform.classList.add("hidden");
+      transcriptEl.classList.remove("animate-pulse");
+      transcriptEl.placeholder = "Press the mic or camera to start...";
+    } else {
+      currentTranscript = "";
+      transcriptEl.value = "";
+      recognition.start();
+      recording = true;
+      recordIcon.innerText = "stop";
+      waveform.classList.remove("hidden");
+      transcriptEl.classList.add("animate-pulse");
+      transcriptEl.placeholder = "Listening...";
     }
   };
-} else {
-  alert("Speech recognition not supported in this browser.");
-}
 
-// Toggle recording
-recordBtn.onclick = () => {
-  if (recording) {
-    recognition.stop();
-    recordBtn.innerText = "🎙️ Start Recording";
-    recordBtn.classList.remove("bg-red-600");
-    recordBtn.classList.add("bg-blue-600");
-    recording = false;
-  } else {
-    currentTranscript = "";
-    transcriptEl.value = "";
-    recognition.start();
-    recordBtn.innerText = "⏹️ Stop Recording";
-    recordBtn.classList.remove("bg-blue-600");
-    recordBtn.classList.add("bg-red-600");
-    recording = true;
-  }
-};
+  // --- Save Transcript Logic ---
+  saveBtn.onclick = () => {
+    const content = transcriptEl.value.trim();
+    if (!content) return alert("Transcript is empty.");
+    const name = prompt("Enter a name for this transcript:", "Untitled Session");
+    if (!name) return;
+    const token = localStorage.getItem("mednote_id_token");
+    if (!token) return alert("You must be logged in to save transcripts.");
 
-// Save transcript
-saveBtn.onclick = () => {
-  const content = transcriptEl.value.trim();
-  if (!content) {
-    alert("Transcript is empty.");
-    return;
-  }
-
-  const name = prompt("Enter a name for this transcript:", "Untitled");
-  if (!name) return;
-
-  const token = localStorage.getItem("mednote_id_token");
-  if (!token) {
-    alert("You must be logged in to save transcripts.");
-    return;
-  }
-
-  const entry = {
-    name,
-    content,
-    timestamp: new Date().toISOString()
-  };
-
-  fetch("/api/transcripts/save", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify(entry)
-  })
+    fetch("/api/transcripts/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+      body: JSON.stringify({ name, content, timestamp: new Date().toISOString() })
+    })
     .then(res => res.json())
     .then(data => {
       if (data.status === "Saved") {
-        alert("Saved successfully!");
+        alert("✅ Saved successfully!");
         transcriptEl.value = "";
         currentTranscript = "";
       } else {
-        alert("Save failed: " + (data.error || "Unknown error"));
+        alert("❌ Save failed: " + (data.error || "Unknown error"));
       }
+    });
+  };
+
+  // --- NEW: OCR/Image Upload Logic ---
+  uploadBtn.onclick = () => { imageInput.click(); };
+
+  imageInput.onchange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      selectedImageFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImage.src = e.target.result;
+        imagePreviewModal.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  cancelUploadBtn.onclick = () => {
+    imagePreviewModal.classList.add("hidden");
+    imageInput.value = "";
+    selectedImageFile = null;
+  };
+
+  extractTextBtn.onclick = () => {
+    if (!selectedImageFile) return;
+    modalActions.classList.add("hidden");
+    modalLoading.classList.remove("hidden");
+    const formData = new FormData();
+    formData.append("image", selectedImageFile);
+    const token = localStorage.getItem("mednote_id_token");
+
+    fetch("/api/transcripts/extract-from-image", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+      body: formData
+    })
+    .then(res => res.json().then(data => ({ ok: res.ok, data })))
+    .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.error || 'Extraction failed');
+        currentTranscript = data.text;
+        transcriptEl.value = currentTranscript;
+        alert("Text extracted successfully!");
     })
     .catch(err => {
-      console.error("Error saving:", err);
-      alert("Error saving transcript.");
+        console.error("Extraction error:", err);
+        alert(`Error: ${err.message}`);
+    })
+    .finally(() => {
+      imagePreviewModal.classList.add("hidden");
+      modalActions.classList.remove("hidden");
+      modalLoading.classList.add("hidden");
+      imageInput.value = "";
+      selectedImageFile = null;
     });
+  };
 };
