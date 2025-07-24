@@ -1,8 +1,11 @@
 Flask
 Flask-Cors
-pymongo
 gunicorn
+pymongo
+certifi
 python-dotenv
-requests
 firebase-admin
 groq
+google-cloud-vision
+google-auth
+requests
