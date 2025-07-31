@@ -13,12 +13,13 @@
         body { font-family: 'Roboto', sans-serif; }
         .material-symbols-outlined { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48; }
         #transcript { background-color: transparent; resize: none; outline: none; }
-        @keyframes wave { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1.5); } }
-        #waveform span { animation: wave 1.2s infinite ease-in-out; }
-        #waveform span:nth-child(2) { animation-delay: -1.0s; }
-        #waveform span:nth-child(3) { animation-delay: -0.8s; }
-        #waveform span:nth-child(4) { animation-delay: -1.0s; }
         #app-container { display: none; }
+        @keyframes wave { 0%, 100% { transform: scaleY(0.5); } 50% { transform: scaleY(1.5); } }
+        #waveform.is-recording span { animation: wave 1.2s infinite ease-in-out; }
+        #waveform span { height: 0.25rem; transition: height 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #waveform.is-recording span:nth-child(1), #waveform.is-recording span:nth-child(5) { height: 1rem; }
+        #waveform.is-recording span:nth-child(2), #waveform.is-recording span:nth-child(4) { height: 2.5rem; }
+        #waveform.is-recording span:nth-child(3) { height: 4rem; }
     </style>
 </head>
 <body class="bg-orange-100">
@@ -43,23 +44,26 @@
         </header>
 
         <main class="flex-grow flex items-center justify-center my-4 relative">
-            <div id="waveform" class="absolute flex items-center justify-center space-x-1 h-20 hidden">
-                <span class="w-1.5 h-4 bg-orange-300 rounded-full"></span>
-                <span class="w-1.5 h-10 bg-orange-400 rounded-full"></span>
-                <span class="w-1.5 h-16 bg-orange-500 rounded-full"></span>
-                <span class="w-1.5 h-10 bg-orange-400 rounded-full"></span>
-                <span class="w-1.5 h-4 bg-orange-300 rounded-full"></span>
+            <div id="waveform" class="absolute flex items-center justify-center space-x-2 w-48 h-48 rounded-full border-4 border-orange-500">
+                <span class="w-2 bg-orange-300 rounded-full"></span>
+                <span class="w-2 bg-orange-400 rounded-full"></span>
+                <span class="w-2 bg-orange-500 rounded-full"></span>
+                <span class="w-2 bg-orange-400 rounded-full"></span>
+                <span class="w-2 bg-orange-300 rounded-full"></span>
             </div>
-            <textarea id="transcript" readonly class="w-full h-full text-center text-gray-800 text-lg" placeholder="Press the mic or camera to start..."></textarea>
+            <textarea id="transcript" readonly class="w-full h-full text-center text-gray-800 text-lg p-4" placeholder="Press the mic or camera to start..."></textarea>
         </main>
 
         <footer class="flex flex-col items-center space-y-6">
-            <div class="flex items-center space-x-6">
+            <div class="flex items-center space-x-4">
                 <button id="uploadBtn" class="bg-orange-500 text-white p-4 rounded-full shadow-lg transition-transform transform hover:scale-110">
                     <span class="material-symbols-outlined text-4xl">photo_camera</span>
                 </button>
                 <button id="recordBtn" class="bg-orange-500 text-white p-4 rounded-full shadow-lg transition-transform transform hover:scale-110">
                     <span id="recordIcon" class="material-symbols-outlined text-4xl">mic</span>
+                </button>
+                <button id="pauseBtn" class="bg-gray-400 text-white p-3 rounded-full shadow-lg hidden transition-transform transform hover:scale-110">
+                    <span id="pauseIcon" class="material-symbols-outlined text-3xl">pause</span>
                 </button>
                 <input type="file" id="imageInput" accept="image/*" class="hidden">
             </div>
@@ -83,6 +87,24 @@
                 <p>Extracting text, please wait...</p>
             </div>
         </div>
+    </div>
+
+    <!-- Save Session Modal -->
+    <div id="saveSessionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+            <h2 class="text-xl font-bold mb-4">Save Session</h2>
+            <p class="text-gray-600 mb-4">Enter a name for this session transcript.</p>
+            <input id="sessionNameInput" type="text" class="w-full border-gray-300 rounded-md shadow-sm focus:border-orange-500 focus:ring-orange-500" placeholder="e.g., Follow-up with John D.">
+            <div class="flex justify-end space-x-3 mt-6">
+                <button id="cancelSaveBtn" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg">Cancel</button>
+                <button id="confirmSaveBtn" class="bg-orange-500 text-white px-4 py-2 rounded-lg">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-8 right-8 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-300">
+        <p id="toast-message"></p>
     </div>
 
     <!-- Scripts -->
