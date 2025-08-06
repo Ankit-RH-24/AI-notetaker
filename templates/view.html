@@ -4,38 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>View Transcript</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
-    <style type="text/tailwindcss">
-        :root {
-            --primary-color: #F97316;
-            --background-color: #FFF7ED;
-            --text-primary: #1F2937;
-            --text-secondary: #6B7280;
-        }
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <style>
         body {
-            font-family: 'Roboto', sans-serif;
-            background-color: var(--background-color);
+            font-family: 'Inter', sans-serif;
+        }
+        .bg-gradient-orange {
+            background: linear-gradient(180deg, #FFDDC9 0%, #FFAF8A 100%);
         }
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-        .action-button {
-            @apply flex flex-col items-center justify-center space-y-1 text-gray-600 hover:text-[var(--primary-color)] transition-colors;
-        }
-        .footer-icon-button {
-            @apply h-14 w-14 flex items-center justify-center rounded-full shadow-md transition-transform transform hover:scale-110;
-        }
     </style>
 </head>
-<body class="text-[var(--text-primary)]">
+<body class="bg-gradient-orange text-gray-800">
 
-    <div class="flex flex-col min-h-screen p-6 w-full max-w-2xl mx-auto">
+    <div class="flex flex-col min-h-screen p-4 w-full max-w-2xl mx-auto">
         <!-- Header -->
         <header class="flex items-center text-gray-800 mb-6">
             <button onclick="window.location.href='/saved'" class="p-2 -ml-2">
-                <span class="material-symbols-outlined">arrow_back</span>
+                <span class="material-icons">arrow_back</span>
             </button>
             <div class="flex-grow text-center">
                 <h1 id="transcript-name" class="text-2xl font-bold">Loading...</h1>
@@ -45,7 +35,7 @@
 
         <!-- Loading State -->
         <div id="loader" class="flex-grow flex flex-col items-center justify-center">
-             <svg class="animate-spin h-8 w-8 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+             <svg class="animate-spin h-8 w-8 text-orange-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -57,41 +47,32 @@
             <div>
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-lg font-semibold">AI Summary</h2>
-                    <button id="regenerate-summary-btn" class="hidden text-sm text-orange-600 hover:underline">Regenerate</button>
+                    <button id="regenerate-summary-btn" class="hidden bg-orange-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm hover:bg-orange-600 transition-colors">Regenerate</button>
                 </div>
-                <div id="summary-content" class="p-4 bg-orange-100 border border-orange-200 rounded-lg text-gray-700 whitespace-pre-wrap min-h-[6rem]"></div>
+                <div id="summary-content" class="p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 text-gray-700 whitespace-pre-wrap min-h-[6rem]"></div>
             </div>
             <!-- Full Transcript Section -->
             <div>
                  <div class="flex justify-between items-center mb-2">
                     <h2 class="text-lg font-semibold">Full Transcript</h2>
-                    <button id="save-changes-btn" class="hidden text-sm bg-green-500 text-white px-3 py-1 rounded-lg">Save Changes</button>
+                    <button id="save-changes-btn" class="hidden text-sm bg-green-500 text-white px-3 py-1 rounded-full shadow-sm">Save Changes</button>
                 </div>
-                <textarea id="transcript-content" class="w-full p-4 bg-white border border-gray-200 rounded-lg text-gray-700 h-64 overflow-y-auto whitespace-pre-wrap focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
+                <textarea id="transcript-content" class="w-full p-4 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 text-gray-700 h-64 overflow-y-auto whitespace-pre-wrap focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
             </div>
         </main>
 
         <!-- Footer with Action Buttons -->
-        <footer id="footer-actions" class="py-4 mt-auto border-t border-gray-200 hidden">
-            <div class="flex justify-around items-center">
-                <div class="flex flex-col items-center space-y-1">
-                    <button id="share-btn" class="footer-icon-button bg-orange-500 hover:bg-orange-600">
-                        <span class="material-symbols-outlined text-white">share</span>
-                    </button>
-                    <span class="text-xs text-gray-600">Share</span>
-                </div>
-                <div class="flex flex-col items-center space-y-1">
-                    <button id="copy-btn" class="footer-icon-button bg-orange-500 hover:bg-orange-600">
-                        <span class="material-symbols-outlined text-white">content_copy</span>
-                    </button>
-                    <span class="text-xs text-gray-600">Copy</span>
-                </div>
-                <div class="flex flex-col items-center space-y-1">
-                    <button id="delete-btn" class="footer-icon-button bg-red-500 hover:bg-red-600">
-                        <span class="material-symbols-outlined text-white">delete</span>
-                    </button>
-                    <span class="text-xs text-red-500">Delete</span>
-                </div>
+        <footer id="footer-actions" class="py-4 mt-auto hidden">
+            <div class="flex justify-center items-center space-x-6">
+                <button id="share-btn" class="bg-orange-500 hover:bg-orange-600 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform transform hover:scale-110">
+                    <span class="material-icons" style="font-size: 32px;">share</span>
+                </button>
+                <button id="copy-btn" class="bg-orange-500 hover:bg-orange-600 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform transform hover:scale-110">
+                    <span class="material-icons" style="font-size: 32px;">content_copy</span>
+                </button>
+                <button id="delete-btn" class="bg-red-500 hover:bg-red-600 text-white w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform transform hover:scale-110">
+                    <span class="material-icons" style="font-size: 32px;">delete</span>
+                </button>
             </div>
         </footer>
     </div>
@@ -127,17 +108,14 @@
                 .then(data => {
                     if (data.error) throw new Error(data.error);
 
-                    // Populate initial data
                     transcriptName.textContent = data.name || 'Untitled Session';
                     transcriptContent.value = data.content || '';
                     originalTranscript = data.content || '';
                     
-                    // Show the main content
                     loader.classList.add('hidden');
                     contentContainer.classList.remove('hidden');
                     footerActions.classList.remove('hidden');
 
-                    // Decide whether to generate or show summary
                     if (data.summary) {
                         summaryContent.textContent = data.summary;
                         regenerateBtn.classList.remove('hidden');
@@ -150,7 +128,6 @@
                     loader.innerHTML = `<p class="text-red-500">Error: ${err.message}</p>`;
                 });
             
-            // --- Function to generate summary ---
             function generateSummary(content) {
                 summaryContent.textContent = 'Generating AI summary...';
                 regenerateBtn.classList.add('hidden');
@@ -171,7 +148,6 @@
                 });
             }
 
-            // --- Event Listeners ---
             transcriptContent.addEventListener('input', () => {
                 if (transcriptContent.value !== originalTranscript) {
                     saveChangesBtn.classList.remove('hidden');
