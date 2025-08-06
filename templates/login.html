@@ -7,47 +7,41 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
     <style type="text/tailwindcss">
-        :root {
-            --primary-color: #F97316;
-            --background-color: #FFF7ED;
-            --text-primary: #1F2937;
-            --text-secondary: #6B7280;
-            --input-bg: #FFFFFF;
-            --input-border: #D1D5DB;
-            --button-text-color: #FFFFFF;
-        }
         body {
-            font-family: 'Roboto', sans-serif;
-            background-color: var(--background-color);
+            font-family: 'Inter', sans-serif;
+        }
+        .bg-gradient-orange {
+            background: linear-gradient(180deg, #FFDDC9 0%, #FFAF8A 100%);
         }
         .form-input {
-            @apply w-full px-4 py-3 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:border-transparent;
+            @apply w-full px-4 py-3 rounded-lg bg-white/80 border border-orange-200 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent;
         }
         .submit-button {
-            @apply w-full bg-[var(--primary-color)] text-[var(--button-text-color)] font-semibold py-3 rounded-lg shadow-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--primary-color)] transition-colors duration-300 disabled:bg-gray-400;
+            @apply w-full bg-orange-500 text-white font-semibold py-3 rounded-full shadow-md hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-300 disabled:bg-orange-300;
         }
         .otp-input {
             @apply w-12 h-14 text-center text-2xl font-semibold form-input;
         }
     </style>
 </head>
-<body class="text-[var(--text-primary)]">
+<body class="bg-gradient-orange text-gray-800">
     <div class="flex flex-col min-h-screen">
         <main class="flex-grow flex items-center justify-center p-6">
-            <div class="w-full max-w-sm mx-auto">
+            <div class="w-full max-w-sm mx-auto bg-white/70 backdrop-blur-sm p-8 rounded-2xl shadow-lg border border-white/20">
                 <div class="text-center mb-10">
-                    <h1 class="text-4xl font-bold text-[var(--primary-color)]">Welcome</h1>
-                    <p class="text-[var(--text-secondary)] mt-2">Enter your phone number to get started.</p>
+                    <h1 class="text-4xl font-bold text-orange-600">Welcome</h1>
+                    <p class="text-gray-700 mt-2">Enter your phone number to get started.</p>
                 </div>
                 
                 <!-- Phone Number Form -->
                 <form class="space-y-6" id="phone-form">
                     <div>
-                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1" for="phone">Phone Number</label>
+                        <label class="block text-sm font-medium text-gray-600 mb-1" for="phone">Phone Number</label>
                         <div class="flex">
-                            <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-[var(--input-border)] bg-gray-50 text-[var(--text-secondary)] text-sm">+91</span>
+                            <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-orange-200 bg-gray-50 text-gray-600 text-sm">+91</span>
                             <input class="form-input rounded-l-none" id="phone" name="phone" placeholder="9876543210" type="tel"/>
                         </div>
                     </div>
@@ -58,8 +52,8 @@
                 <!-- OTP Verification Form (Initially Hidden) -->
                 <form class="space-y-6 hidden" id="otp-form">
                     <div>
-                        <label class="block text-sm font-medium text-[var(--text-secondary)] mb-1" for="otp">Enter Verification Code</label>
-                        <p class="text-sm text-[var(--text-secondary)] mb-4">We've sent a 6-digit code to <span class="font-semibold text-[var(--text-primary)]" id="phone-display"></span>. <button class="text-sm text-[var(--primary-color)] hover:underline" id="change-phone-btn" type="button">Change</button></p>
+                        <label class="block text-sm font-medium text-gray-600 mb-1" for="otp">Enter Verification Code</label>
+                        <p class="text-sm text-gray-600 mb-4">We've sent a 6-digit code to <span class="font-semibold text-gray-800" id="phone-display"></span>. <button class="text-sm text-orange-600 hover:underline" id="change-phone-btn" type="button">Change</button></p>
                         <div class="flex justify-center space-x-2" id="otp-inputs">
                             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" />
                             <input class="otp-input" maxlength="1" type="text" inputmode="numeric" />
@@ -71,19 +65,19 @@
                         <p class="text-red-500 text-sm mt-2 hidden" id="otp-error">Invalid OTP. Please try again.</p>
                     </div>
                     <button class="submit-button" id="verify-otp-btn" type="submit">Verify</button>
-                    <p class="text-center text-sm text-[var(--text-secondary)]">
-                        Didn't receive the code? <button class="font-medium text-[var(--primary-color)] hover:underline disabled:text-gray-400 disabled:cursor-not-allowed" id="resend-otp-btn" type="button" disabled>Resend</button>
-                        <span class="text-[var(--text-secondary)]" id="resend-timer"></span>
+                    <p class="text-center text-sm text-gray-600">
+                        Didn't receive the code? <button class="font-medium text-orange-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed" id="resend-otp-btn" type="button" disabled>Resend</button>
+                        <span class="text-gray-600" id="resend-timer"></span>
                     </p>
                 </form>
 
-                <p class="text-center text-xs text-[var(--text-secondary)] mt-8">
-                    By continuing, you agree to our <a class="font-medium text-[var(--primary-color)] hover:underline" href="#">Terms of Service</a> and <a class="font-medium text-[var(--primary-color)] hover:underline" href="#">Privacy Policy</a>.
+                <p class="text-center text-xs text-gray-600 mt-8">
+                    By continuing, you agree to our <a class="font-medium text-orange-600 hover:underline" href="#">Terms of Service</a> and <a class="font-medium text-orange-600 hover:underline" href="#">Privacy Policy</a>.
                 </p>
             </div>
         </main>
         <footer class="py-4">
-            <div class="w-36 h-1 bg-black rounded-full mx-auto"></div>
+            <div class="w-36 h-1 bg-black rounded-full mx-auto opacity-80"></div>
         </footer>
     </div>
 
