@@ -1,14 +1,15 @@
 import os
 import certifi
-import json # Import the json library
+import json
 from flask import Blueprint, request, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
 from groq import Groq
 from dotenv import load_dotenv
-from firebase_auth import verify_firebase_token
+from firebase_auth import verify_firebase_token # Corrected import
 from google.cloud import vision 
-from google.oauth2 import service_account # Import the service_account module
+from google.oauth2 import service_account
+from datetime import datetime # Import the datetime module
 
 # --- Initialize Clients ---
 load_dotenv()
@@ -17,7 +18,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 ca = certifi.where()
 client = MongoClient(MONGO_URI, tlsCAFile=ca)
-db = client.get_database("Mednote")
+db = client.get_database("Mednote") # Corrected to lowercase
 collection = db["transcripts"]
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -25,7 +26,7 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 # --- SECURE VISION CLIENT INITIALIZATION ---
 creds_json_str = os.getenv("FIREBASE_CREDENTIAL_JSON")
 
-if creds_json_str:
+if creds_json_str and creds_json_str.strip():
     # In production (Render), load credentials from the environment variable
     creds_info = json.loads(creds_json_str)
     credentials = service_account.Credentials.from_service_account_info(creds_info)
@@ -90,7 +91,6 @@ def list_transcripts():
     user = request.user
     docs = []
     try:
-        # Sort by timestamp descending to get newest first
         cursor = collection.find({"user_id": user.get("uid")})
         for doc in cursor:
             docs.append({
@@ -122,20 +122,43 @@ def summarize():
     if not existing:
         return jsonify({"error": "Transcript not found or access denied"}), 403
 
+    # --- NEW: Automatically format the date ---
+    formatted_date = "Not specified"
+    timestamp_str = existing.get("timestamp")
+    if timestamp_str:
+        try:
+            # Parse ISO 8601 format string from JavaScript
+            dt_object = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            formatted_date = dt_object.strftime("%B %d, %Y")
+        except ValueError:
+            # Fallback for other date formats if necessary
+            pass
+
     try:
         chat_completion = groq_client.chat.completions.create(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are MedNote, an expert assistant trained in psychotherapy session summarization..."
+                    # --- UPDATED PROMPT ---
+                    "content": (
+                        f"You are MedNote, an expert assistant for medical professionals. "
+                        f"Generate a summary in plain text only. Do not use any markdown formatting like bolding (**) or italics (*).\n\n"
+                        f"Structure the output with these exact headings, followed by a colon. If information isn't available, state 'Not specified'.\n\n"
+                        f"Date: {formatted_date}\n"
+                        f"Session Type:\n"
+                        f"Therapist:\n"
+                        f"Patient/Client:\n\n"
+                        f"Summary:\n"
+                        f"[Provide a concise, professional summary of the transcript here]"
+                    )
                 },
                 {
                     "role": "user",
-                    "content": f"Here is the full transcript:\n\n{content}\n\nGenerate a structured summary."
+                    "content": f"Here is the full transcript:\n\n{content}"
                 }
             ],
             model="llama3-8b-8192",
-            temperature=0.7,
+            temperature=0.5,
         )
         summary = chat_completion.choices[0].message.content
 
